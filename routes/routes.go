@@ -14,6 +14,7 @@ import (
 	k9TrainingRecordHandler "k9-system/handlers/training_record"
 	k9HealthRecordHandler "k9-system/handlers/k9_health"
 	criminalCaseHandler "k9-system/handlers/officer_intelligence"
+	dashboardHandler "k9-system/handlers/dashboard"
 )
 
 func SetupRoutes(router *gin.Engine) {
@@ -391,6 +392,23 @@ func SetupRoutes(router *gin.Engine) {
 		),
 
 		criminalCaseHandler.GetCriminalCaseByID,
+	)
+}
+
+// dashbaord api
+
+{
+	api.GET(
+		"/dashboard",
+
+		middleware.AuthMiddleware(),
+
+		// middleware.PermissionMiddleware(
+		// 	"dashboard",
+		// 	"view",
+		// ),
+
+		dashboardHandler.GetDashboard,
 	)
 }
  }
