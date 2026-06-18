@@ -3,7 +3,6 @@ package database
 import (
 	"fmt"
 	"k9-system/config"
-	// "k9-system/models"
 )
 
 import (
