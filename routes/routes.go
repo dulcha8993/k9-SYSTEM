@@ -15,6 +15,7 @@ import (
 	k9HealthRecordHandler "k9-system/handlers/k9_health"
 	criminalCaseHandler "k9-system/handlers/officer_intelligence"
 	dashboardHandler "k9-system/handlers/dashboard"
+	lookupHandler "k9-system/handlers/lookup"
 )
 
 func SetupRoutes(router *gin.Engine) {
@@ -409,6 +410,16 @@ func SetupRoutes(router *gin.Engine) {
 		// ),
 
 		dashboardHandler.GetDashboard,
+	)
+}
+
+{
+	api.GET(
+		"/lookups",
+
+		middleware.AuthMiddleware(),
+
+		lookupHandler.GetLookups,
 	)
 }
  }

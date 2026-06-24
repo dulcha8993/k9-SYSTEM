@@ -37,5 +37,6 @@ type K9ActivitySummary struct {
 	TrainingRecords     int64     `json:"training_records"`
 	HealthRecords       int64     `json:"health_records"`
 	CriminalCases       int64     `json:"criminal_cases"`
+	AlertsCount         int64     `json:"alerts_count"`
 	TotalActivities      int64     `json:"total_activities"`
 }
