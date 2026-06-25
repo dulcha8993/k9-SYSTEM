@@ -17,6 +17,8 @@ import (
 	K9TrainerModel "k9-system/models/k9_trainer"
 
 	K9ProfileModel "k9-system/models/k9_profile"
+
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateTrainingRecord(
@@ -191,7 +193,7 @@ func CreateTrainingRecord(
 func UpdateTrainingRecord(
 	id string,
 	req dto.UpdateTrainingRecordRequest,
-) (*TrainingRecord.TrainingRecord, error) {
+) (*TrainingRecord.TrainingRecord, []activityLogDTO.FieldChange, error) {
 
 	tx := config.DB.Begin()
 
@@ -207,12 +209,16 @@ func UpdateTrainingRecord(
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.NotFound(
 				"Training Record",
 			),
 		)
 	}
+
+
+	// Keep original copy
+	original := trainingRecord
 
 	if req.K9ID != nil {
 
@@ -224,7 +230,7 @@ func UpdateTrainingRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidUUID(
 					"K9 ID",
 				),
@@ -244,7 +250,7 @@ func UpdateTrainingRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidUUID(
 					"Trainer ID",
 				),
@@ -276,7 +282,7 @@ func UpdateTrainingRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate(
 					"StartDate",
 				),
@@ -296,7 +302,7 @@ func UpdateTrainingRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate(
 					"EndDate",
 				),
@@ -340,7 +346,7 @@ func UpdateTrainingRecord(
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToUpdate(
 				"training record",
 			),
@@ -359,19 +365,25 @@ func UpdateTrainingRecord(
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToRetrieve(
 				"training record",
 			),
 		)
 	}
 
+	// Detect changes BEFORE Save
+	changes := utils.GetChanges(
+		original,
+		trainingRecord,
+	)
+
 	if err := tx.Commit().Error; err != nil {
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &trainingRecord, nil
+	return &trainingRecord, changes, nil
 }
 
 func GetTrainingRecords(

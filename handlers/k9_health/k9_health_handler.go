@@ -3,6 +3,7 @@ package k9_health
 import (
 	"net/http"
 	"gorm.io/gorm" 
+	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,6 +16,9 @@ import (
 	dto "k9-system/dto/k9_health"
 	response "k9-system/response"
 	k9HealthService "k9-system/services/k9_health"
+	activityLogService "k9-system/services/activity_log"
+	activityLogDTO "k9-system/dto/activity_log"
+	"k9-system/constants"
 )
 
 
@@ -36,6 +40,8 @@ func CretateHealthRecord(c *gin.Context) {
 	record, err := k9HealthService.CreateHealthRecord(
 		req,
 	)
+
+	LogCreate(c, constants.ActionCreate ,&record.ID, err, nil)
 
 	if err != nil {
 
@@ -70,11 +76,11 @@ func UpdateHealthRecord(c *gin.Context) {
 		return
 	}
 
-
-	record, err := k9HealthService.UpdateHealthRecord(
+	record, changes, err := k9HealthService.UpdateHealthRecord(
 		id,
 		req,
 	)
+	LogCreate(c, constants.ActionUpdate ,&record.ID, err, changes)
 
 	if err != nil {
 
@@ -109,6 +115,8 @@ func GetHealthRecords(c *gin.Context) {
 		pagination,
 	)
 
+	LogCreate(c, constants.ActionViewList ,nil, err, nil)
+
 	if err != nil {
 		response.Error(
 			c,
@@ -132,6 +140,8 @@ func GetHealthRecordByID(c *gin.Context) {
 		id,
 	)
 
+	LogCreate(c, constants.ActionView ,&K9HealthRecord.ID, err, nil)
+
 	if err != nil {
 
 		if err == gorm.ErrRecordNotFound {		
@@ -151,4 +161,43 @@ func GetHealthRecordByID(c *gin.Context) {
 	}
 
 	response.Success(c,K9HealthRecord,)
+}
+
+func LogCreate(
+	c *gin.Context,
+	action string,
+	recordID *uuid.UUID,
+	err error,
+	changes []activityLogDTO.FieldChange,
+) {
+
+	userID := c.MustGet("user_id").(uuid.UUID)
+
+	description := action + " K9 Health Record"
+
+	if recordID != nil {
+		description += ": " + recordID.String()
+	}
+
+	if err != nil {
+
+		activityLogService.LogFailure(
+			userID,
+			"k9_veterianary",
+			action,
+			description,
+			err,
+		)
+
+		return
+	}
+
+	activityLogService.LogSuccess(
+		userID,
+		"k9_veterianary",
+		action,
+		recordID,
+		description,
+		changes,
+	)
 }

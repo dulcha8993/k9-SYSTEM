@@ -15,6 +15,8 @@ import (
 	"k9-system/utils"
 
 	K9ProfileModel "k9-system/models/k9_profile"
+
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateHealthRecord(
@@ -124,7 +126,7 @@ func CreateHealthRecord(
 func UpdateHealthRecord(
 	id string,
 	req dto.UpdateK9HealthRecordRequest,
-) (*K9HealthRecordModel.HealthRecord, error) {
+) (*K9HealthRecordModel.HealthRecord, []activityLogDTO.FieldChange, error) {
 
 	var healthRecord K9HealthRecordModel.HealthRecord
 
@@ -134,12 +136,12 @@ func UpdateHealthRecord(
 
 		if err == gorm.ErrRecordNotFound {
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.NotFound("Health record"),
 			)
 		}
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToRetrieve("health record"),
 		)
 	}
@@ -156,7 +158,7 @@ func UpdateHealthRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidUUID("K9 Profile ID"),
 			)
 		}
@@ -170,13 +172,17 @@ func UpdateHealthRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.NotFound("K9 profile"),
 			)
 		}
 
 		healthRecord.K9ID = k9UUID
 	}
+
+
+	// Keep original copy
+	original := healthRecord
 
 	if req.VisitedDate != nil {
 
@@ -188,7 +194,7 @@ func UpdateHealthRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate("VisitedDate"),
 			)
 		}
@@ -206,7 +212,7 @@ func UpdateHealthRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate("ReleasedDate"),
 			)
 		}
@@ -224,7 +230,7 @@ func UpdateHealthRecord(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate("NextAppointment"),
 			)
 		}
@@ -264,11 +270,17 @@ func UpdateHealthRecord(
 		healthRecord.RecoveryStatus = *req.RecoveryStatus
 	}
 
+	// Detect changes BEFORE Save
+	changes := utils.GetChanges(
+		original,
+		healthRecord,
+	)
+
 	if err := tx.Save(&healthRecord).Error; err != nil {
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToUpdate("health record"),
 		)
 	}
@@ -283,17 +295,17 @@ func UpdateHealthRecord(
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToRetrieve("health record"),
 		)
 	}
 
 	if err := tx.Commit().Error; err != nil {
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &healthRecord, nil
+	return &healthRecord, changes, nil
 }
 
 func GetHealthRecords(

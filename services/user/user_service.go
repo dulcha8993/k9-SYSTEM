@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	// "github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/google/uuid"
 
@@ -17,6 +16,8 @@ import (
 	accessModel "k9-system/models/access"
 
 	userModel "k9-system/models/user"
+
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateUser(
@@ -151,7 +152,7 @@ func CreateUser(
 
 	// 	tx.Rollback()
 
-	// 	return nil, errors.New(
+	// 	return nil, nil, errors.New(
 	// 		constants.FailedToRetrieve(
 	// 			"user",
 	// 		),
@@ -169,7 +170,7 @@ func CreateUser(
 func UpdateUser(
 	id string,
 	req dto.UpdateUserRequest,
-) (*userModel.User, error) {
+) (*userModel.User, []activityLogDTO.FieldChange, error) {
 
 	var existingUser userModel.User
 
@@ -178,11 +179,13 @@ func UpdateUser(
 		First(&existingUser).
 		Error; err != nil {
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.NotFound("User"),
 		)
 	}
 
+	// Keep original copy
+	original := existingUser
 	// Check duplicate email
 
 	if req.Email != nil {
@@ -199,7 +202,7 @@ func UpdateUser(
 
 		if emailUser.ID != uuid.Nil {
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				"Email already exists",
 			)
 		}
@@ -219,7 +222,7 @@ func UpdateUser(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidUUID(
 					"User Role ID",
 				),
@@ -236,7 +239,7 @@ func UpdateUser(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.NotFound(
 					"User role",
 				),
@@ -278,7 +281,7 @@ func UpdateUser(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				"Password hashing failed",
 			)
 		}
@@ -288,15 +291,21 @@ func UpdateUser(
 		)
 	}
 
-	// Save User
+	// Detect changes BEFORE Save
+	changes := utils.GetChanges(
+		original,
+		existingUser,
+	)
 
+
+	// Save User
 	if err := tx.
 		Save(&existingUser).
 		Error; err != nil {
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToUpdate(
 				"user",
 			),
@@ -319,7 +328,7 @@ func UpdateUser(
 
 			tx.Rollback()
 
-			return nil, err
+			return nil, nil, err
 		}
 
 		for _, permission := range req.AdditionalPermissions {
@@ -332,7 +341,7 @@ func UpdateUser(
 
 				tx.Rollback()
 
-				return nil, errors.New(
+				return nil, nil, errors.New(
 					constants.InvalidUUID(
 						"Module ID",
 					),
@@ -352,7 +361,7 @@ func UpdateUser(
 
 				tx.Rollback()
 
-				return nil, errors.New(
+				return nil, nil, errors.New(
 					constants.NotFound(
 						"Module",
 					),
@@ -385,7 +394,7 @@ func UpdateUser(
 
 				tx.Rollback()
 
-				return nil, errors.New(
+				return nil, nil, errors.New(
 					constants.FailedToCreate(
 						"user permission",
 					),
@@ -394,32 +403,11 @@ func UpdateUser(
 		}
 	}
 
-	// Reload Relations
-
-	// if err := tx.
-	// 	Preload("Role").
-	// 	Preload("AdditionalPermissions").
-	// 	First(
-	// 		&existingUser,
-	// 		"id = ?",
-	// 		existingUser.ID,
-	// 	).
-	// 	Error; err != nil {
-
-	// 	tx.Rollback()
-
-	// 	return nil, errors.New(
-	// 		constants.FailedToRetrieve(
-	// 			"user",
-	// 		),
-	// 	)
-	// }
-
 	if err := tx.Commit().Error; err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &existingUser, nil
+	return &existingUser, changes, nil
 }
 
 func GetUsers(
@@ -561,3 +549,4 @@ func GetUserByID(
 
 	return &userResponse, nil
 }
+

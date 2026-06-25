@@ -14,6 +14,7 @@ import (
 	config "k9-system/config"
 	k9Model "k9-system/models/k9_profile"
 	utils "k9-system/utils"
+	activityLogDTO "k9-system/dto/activity_log"
 	"k9-system/constants"
 )
 
@@ -127,7 +128,11 @@ func CreateK9Profile(
 func UpdateK9Profile(
 	id string,
 	req dto.UpdateK9ProfileRequest,
-) (*k9Model.K9Profile, error) {
+) (
+	*k9Model.K9Profile,
+	[]activityLogDTO.FieldChange,
+	error,
+) {
 
 	var k9Profile k9Model.K9Profile
 
@@ -135,16 +140,18 @@ func UpdateK9Profile(
 
 		if err == gorm.ErrRecordNotFound {
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.NotFound("K9 profile"),
 			)
-
-		} else {
-			return nil, errors.New(
-				constants.FailedToRetrieve("K9 profile"),
-			)
 		}
+
+		return nil, nil, errors.New(
+			constants.FailedToRetrieve("K9 profile"),
+		)
 	}
+
+	// Keep original copy
+	original := k9Profile
 
 	if req.Name != nil {
 		k9Profile.Name = *req.Name
@@ -159,16 +166,15 @@ func UpdateK9Profile(
 	}
 
 	if req.DateOfBirth != nil {
-		
-		dateOfBirth, err := utils.ParseDate(
-			*req.DateOfBirth,
-		)
+
+		dateOfBirth, err := utils.ParseDate(*req.DateOfBirth)
 
 		if err != nil {
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate("DateOfBirth"),
 			)
 		}
+
 		k9Profile.DateOfBirth = dateOfBirth
 	}
 
@@ -181,28 +187,28 @@ func UpdateK9Profile(
 	}
 
 	if req.ServiceSince != nil {
-		serviceSince, err := utils.ParseDate(
-			*req.ServiceSince,
-		)
+
+		serviceSince, err := utils.ParseDate(*req.ServiceSince)
 
 		if err != nil {
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate("ServiceSince"),
 			)
 		}
+
 		k9Profile.ServiceSince = serviceSince
 	}
 
 	if req.ServiceEnd != nil {
-		serviceEnd, err := utils.ParseDate(
-			*req.ServiceEnd,
-		)
+
+		serviceEnd, err := utils.ParseDate(*req.ServiceEnd)
 
 		if err != nil {
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate("ServiceEnd"),
 			)
 		}
+
 		k9Profile.ServiceEnd = serviceEnd
 	}
 
@@ -210,12 +216,18 @@ func UpdateK9Profile(
 		k9Profile.Status = *req.Status
 	}
 
+	// Detect changes BEFORE Save
+	changes := utils.GetChanges(
+		original,
+		k9Profile,
+	)
+
 	if err := config.DB.Save(&k9Profile).Error; err != nil {
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &k9Profile, nil
+	return &k9Profile, changes, nil
 }
 
 func GetK9Profiles(

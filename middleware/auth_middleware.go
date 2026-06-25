@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 import authHandler "k9-system/handlers/auth"
@@ -85,9 +86,22 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Store user info in request context
-		c.Set("user_id", claims.UserID)
+
+
+		userUUID, err := uuid.Parse(claims.UserID)
+
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"message": "Invalid user ID",
+			})
+			return
+		}
+
+		c.Set("user_id", userUUID)
+		// c.Set("user_id", claims.UserID)
 		c.Set("role_id", claims.RoleID)
 		c.Set("email", claims.Email)
+		c.Set("user_full_name", claims.FullName)
 
 		c.Next()
 	}

@@ -8,12 +8,16 @@ import (
 
 import (
 	utils "k9-system/utils"
+	"github.com/google/uuid"
 )
 
 import (
 	response "k9-system/response"
 	dto "k9-system/dto/k9_trainer"
 	k9TrainerService "k9-system/services/k9_trainer"
+	activityLogService "k9-system/services/activity_log"
+	activityLogDTO "k9-system/dto/activity_log"
+	"k9-system/constants"
 )
 
 func CreateK9Trainer(c *gin.Context) {
@@ -31,6 +35,8 @@ func CreateK9Trainer(c *gin.Context) {
 	trainerResponse, err := k9TrainerService.CreateK9Trainer(
 		req,
 	)
+
+	LogCreate(c, constants.ActionCreate ,&trainerResponse.GenaralInfo.ID, err, nil)
 
 	if err != nil {
 
@@ -62,10 +68,12 @@ func UpdateK9Trainer(c *gin.Context) {
 		return
 	}
 
-	trainer, err := k9TrainerService.UpdateK9Trainer(
+	trainer, changes, err := k9TrainerService.UpdateK9Trainer(
 		id,
 		req,
 	)
+
+	LogCreate(c, constants.ActionUpdate ,&trainer.ID, err, changes)
 
 	if err != nil {
 
@@ -97,6 +105,8 @@ func GetK9Trainers(c *gin.Context) {
 		trainer_id,
 		pagination,
 	)
+
+	LogCreate(c, constants.ActionViewList ,nil, err, nil)
 
 	if err != nil {
 		response.Error(
@@ -131,6 +141,8 @@ func AssignK9TrainerToK9(c *gin.Context) {
 		req,
 	)
 
+	LogCreate(c, constants.ActionAssignK9 ,&result.ID, err, nil)
+
 	if err != nil {
 
 		response.Error(
@@ -145,5 +157,44 @@ func AssignK9TrainerToK9(c *gin.Context) {
 	response.Success(
 		c,
 		result,
+	)
+}
+
+func LogCreate(
+	c *gin.Context,
+	action string,
+	recordID *uuid.UUID,
+	err error,
+	changes []activityLogDTO.FieldChange,
+) {
+
+	userID := c.MustGet("user_id").(uuid.UUID)
+
+	description := action + " K9 Trainer"
+
+	if recordID != nil {
+		description += ": " + recordID.String()
+	}
+
+	if err != nil {
+
+		activityLogService.LogFailure(
+			userID,
+			"k9_trainer",
+			action,
+			description,
+			err,
+		)
+
+		return
+	}
+
+	activityLogService.LogSuccess(
+		userID,
+		"k9_trainer",
+		action,
+		recordID,
+		description,
+		changes,
 	)
 }

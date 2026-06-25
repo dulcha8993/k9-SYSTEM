@@ -12,6 +12,8 @@ import (
 	"k9-system/utils"
 
 	K9Trainer "k9-system/models/k9_trainer"
+
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateK9Trainer(
@@ -138,7 +140,7 @@ func CreateK9Trainer(
 func UpdateK9Trainer(
 	id string,
 	req dto.K9TrainerRequest,
-) (*K9Trainer.K9Trainer, error) {
+) (*K9Trainer.K9Trainer, []activityLogDTO.FieldChange, error) {
 
 	var trainer K9Trainer.K9Trainer
 
@@ -147,10 +149,13 @@ func UpdateK9Trainer(
 
 	if err := tx.First(&trainer, "id = ?", id).Error; err != nil {
 		tx.Rollback()
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.NotFound("K9 Trainer"),
 		)
 	}
+
+	// Keep original copy
+	original := trainer
 
 	if req.Name != "" {
 		trainer.Name = req.Name
@@ -178,7 +183,7 @@ func UpdateK9Trainer(
 		)
 
 		if err != nil {
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate("JoinDate"),
 			)
 		}
@@ -197,7 +202,7 @@ func UpdateK9Trainer(
 	if err := tx.Save(&trainer).Error; err != nil {
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToUpdate("trainer"),
 		)
 	}
@@ -209,7 +214,7 @@ func UpdateK9Trainer(
 		// Delete existing certifications
 		if err := tx.Where("trainer_id = ?", trainer.ID).Delete(&K9Trainer.K9TrainerCertification{}).Error; err != nil {
 			tx.Rollback()
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.FailedToUpdate("trainer - Cert"),
 			)
 		}
@@ -222,7 +227,7 @@ func UpdateK9Trainer(
 			)
 
 			if err != nil {
-				return nil, errors.New(
+				return nil, nil, errors.New(
 					constants.InvalidDate("DateObtained"),
 				)
 			}
@@ -233,7 +238,7 @@ func UpdateK9Trainer(
 			)
 
 			if err != nil {
-				return nil, errors.New(
+				return nil, nil, errors.New(
 					constants.InvalidDate("DateExpires"),
 				)
 			}
@@ -254,17 +259,22 @@ func UpdateK9Trainer(
 
 			if err := tx.Create(&certRecord).Error; err != nil {
 				tx.Rollback()
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
+		// Detect changes BEFORE Save
+	changes := utils.GetChanges(
+		original,
+		trainer,
+	)
 
 	if err := tx.Commit().Error; err != nil {
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &trainer, nil
+	return &trainer, changes, nil
 
 }
 

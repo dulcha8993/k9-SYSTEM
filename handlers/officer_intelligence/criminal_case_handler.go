@@ -1,25 +1,19 @@
 package officer_intelligence
 
 import (
-	// "time"
-
 	"github.com/gin-gonic/gin"
 	"net/http"
-	// "gorm.io/gorm"
-
-	// "k9-system/config"
+	"github.com/google/uuid"
 	"k9-system/utils"
 )
-
-// import (
-// 	CriminalCaseModel "k9-system/models/officer_intelligence"
-// )
 
 import (
 	dto "k9-system/dto/officer_intelligence"
 	response "k9-system/response"
 	constants "k9-system/constants"
 	criminalCaseService "k9-system/services/officer_intelligence"
+	activityLogService "k9-system/services/activity_log"
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateCriminalCase(c *gin.Context) {
@@ -40,6 +34,8 @@ func CreateCriminalCase(c *gin.Context) {
 	criminalCase, err := criminalCaseService.CreateCriminalCase(
 		req,
 	)
+
+	LogCreate(c, constants.ActionCreate ,&criminalCase.ID, err, nil)
 
 	if err != nil {
 
@@ -73,10 +69,12 @@ func UpdateCriminalCase(c *gin.Context) {
 		return
 	}
 
-	criminalCase, err := criminalCaseService.UpdateCriminalCase(
+	criminalCase, changes, err := criminalCaseService.UpdateCriminalCase(
 		c.Param("id"),
 		req,
 	)
+
+	LogCreate(c, constants.ActionUpdate ,&criminalCase.ID, err, changes)
 
 	if err != nil {
 
@@ -109,6 +107,8 @@ func GetCriminalCases(c *gin.Context) {
 		pagination,
 	)
 
+	LogCreate(c, constants.ActionViewList ,nil, err, nil)
+
 	if err != nil {
 
 		response.Error(
@@ -134,6 +134,8 @@ func GetCriminalCaseByID(c *gin.Context) {
 	criminalCase, err := criminalCaseService.GetCriminalCaseByID(
 		id,
 	)
+
+	LogCreate(c, constants.ActionView ,&criminalCase.ID, err, nil)
 
 	if err != nil {
 
@@ -163,3 +165,41 @@ func GetCriminalCaseByID(c *gin.Context) {
 	)
 }
 
+func LogCreate(
+	c *gin.Context,
+	action string,
+	recordID *uuid.UUID,
+	err error,
+	changes []activityLogDTO.FieldChange,
+) {
+
+	userID := c.MustGet("user_id").(uuid.UUID)
+
+	description := action + " Criminal Case"
+
+	if recordID != nil {
+		description += ": " + recordID.String()
+	}
+
+	if err != nil {
+
+		activityLogService.LogFailure(
+			userID,
+			"officer_intelligence",
+			action,
+			description,
+			err,
+		)
+
+		return
+	}
+
+	activityLogService.LogSuccess(
+		userID,
+		"officer_intelligence",
+		action,
+		recordID,
+		description,
+		changes,
+	)
+}

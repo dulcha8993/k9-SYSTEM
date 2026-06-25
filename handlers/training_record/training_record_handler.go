@@ -7,15 +7,17 @@ import (
 )
 
 import (
-	// config "k9-system/config"
-	// TrainingRecord "k9-system/models/training_record"
 	utils "k9-system/utils"
+	"github.com/google/uuid"
 )
 
 import (
 	dto "k9-system/dto/training_record"
 	response "k9-system/response"
 	trainingRecordService "k9-system/services/training_record"
+	activityLogService "k9-system/services/activity_log"
+	activityLogDTO "k9-system/dto/activity_log"
+	"k9-system/constants"
 )
 
 func CreateTraningRecord(c *gin.Context) {
@@ -36,6 +38,8 @@ func CreateTraningRecord(c *gin.Context) {
 	trainingRecord, err := trainingRecordService.CreateTrainingRecord(
 		req,
 	)
+
+	LogCreate(c, constants.ActionCreate ,&trainingRecord.ID, err, nil)
 
 	if err != nil {
 
@@ -71,10 +75,12 @@ func UpdateTrainingRecord(c *gin.Context) {
 		return
 	}
 
-	trainingRecord, err := trainingRecordService.UpdateTrainingRecord(
+	trainingRecord, changes, err := trainingRecordService.UpdateTrainingRecord(
 		id,
 		req,
 	)
+
+	LogCreate(c, constants.ActionUpdate ,&trainingRecord.ID, err, changes)
 
 	if err != nil {
 
@@ -110,6 +116,8 @@ func GetTrainingRecords(c *gin.Context) {
 		pagination,
 	)
 
+	LogCreate(c, constants.ActionViewList ,nil, err, nil)
+
 	if err != nil {
 
 		response.Error(
@@ -125,5 +133,45 @@ func GetTrainingRecords(c *gin.Context) {
 		c,
 		trainingRecords,
 		pagination,
+	)
+}
+
+
+func LogCreate(
+	c *gin.Context,
+	action string,
+	recordID *uuid.UUID,
+	err error,
+	changes []activityLogDTO.FieldChange,
+) {
+
+	userID := c.MustGet("user_id").(uuid.UUID)
+
+	description := action + " K9 Training"
+
+	if recordID != nil {
+		description += ": " + recordID.String()
+	}
+
+	if err != nil {
+
+		activityLogService.LogFailure(
+			userID,
+			"k9_training",
+			action,
+			description,
+			err,
+		)
+
+		return
+	}
+
+	activityLogService.LogSuccess(
+		userID,
+		"k9_training",
+		action,
+		recordID,
+		description,
+		changes,
 	)
 }

@@ -2,6 +2,24 @@ package constants
 
 import "fmt"
 
+
+const (
+	ActionCreate = "CREATE"
+	ActionUpdate = "UPDATE"
+	ActionDelete = "DELETE"
+
+	ActionView   = "VIEW"
+	ActionAssignK9   = "ASSIGN K9"
+	ActionViewList   = "VIEW-LIST"
+	ActionLogin  = "LOGIN"
+	ActionLogout = "LOGOUT"
+)
+
+const (
+	ActivitySuccess = "SUCCESS"
+	ActivityFailed  = "FAILED"
+)
+
 func InvalidDate(field string) string {
 	return fmt.Sprintf(
 		"Invalid %s format. Use YYYY-MM-DD",

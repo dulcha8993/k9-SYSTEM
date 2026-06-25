@@ -26,6 +26,7 @@ type JWTClaims struct {
 	UserID string `json:"user_id"`
 	RoleID string `json:"role_id"`
 	Email string `json:"email"`
+	FullName string `json:"user_full_name"`
 
 	jwt.RegisteredClaims
 }
@@ -84,6 +85,7 @@ func Login(c *gin.Context) { // c *gin.Context contain request, response, header
 		UserID: user.ID.String(),
 		RoleID: user.RoleID.String(),
 		Email: user.Email,
+		FullName: user.FullName,
 
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(

@@ -16,6 +16,8 @@ import (
 	K9TrainerHistoryModel "k9-system/models/k9_trainer"
 
 	"k9-system/utils"
+
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateCriminalCase(
@@ -160,7 +162,7 @@ func CreateCriminalCase(
 func UpdateCriminalCase(
 	id string,
 	req dto.UpdateCriminalCaseRequest,
-) (*CriminalCaseModel.CriminalCase, error) {
+) (*CriminalCaseModel.CriminalCase, []activityLogDTO.FieldChange, error) {
 
 	criminalCaseUUID, err := utils.ParseUUID(
 		id,
@@ -168,7 +170,7 @@ func UpdateCriminalCase(
 
 	if err != nil {
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.InvalidUUID(
 				"Criminal Case ID",
 			),
@@ -189,12 +191,15 @@ func UpdateCriminalCase(
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.NotFound(
 				"criminal case",
 			),
 		)
 	}
+
+		// Keep original copy
+	original := criminalCase
 
 	if req.CaseNumber != nil {
 		criminalCase.CaseNumber = *req.CaseNumber
@@ -226,7 +231,7 @@ func UpdateCriminalCase(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate(
 					"OpenDate",
 				),
@@ -246,7 +251,7 @@ func UpdateCriminalCase(
 
 			tx.Rollback()
 
-			return nil, errors.New(
+			return nil, nil, errors.New(
 				constants.InvalidDate(
 					"ClosedDate",
 				),
@@ -274,7 +279,7 @@ func UpdateCriminalCase(
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToUpdate(
 				"criminal case",
 			),
@@ -294,19 +299,25 @@ func UpdateCriminalCase(
 
 		tx.Rollback()
 
-		return nil, errors.New(
+		return nil, nil, errors.New(
 			constants.FailedToRetrieve(
 				"criminal case",
 			),
 		)
 	}
 
+	// Detect changes BEFORE Save
+	changes := utils.GetChanges(
+		original,
+		criminalCase,
+	)
+
 	if err := tx.Commit().Error; err != nil {
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &criminalCase, nil
+	return &criminalCase, changes, nil
 }
 
 func GetCriminalCases(

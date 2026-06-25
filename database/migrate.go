@@ -13,6 +13,7 @@ import (
 	TrainingRecordModel "k9-system/models/training_record"
 	K9HealthRecordModel "k9-system/models/k9_health"
 	OfficerInterligenceModel "k9-system/models/officer_intelligence"
+	ActivityLogModel "k9-system/models/activity_log"
 )
 
 func Migrate() {
@@ -32,6 +33,7 @@ func Migrate() {
 		&K9HealthRecordModel.HealthRecord{},
 		&K9TrainerModel.K9TrainerHistory{},
 		&OfficerInterligenceModel.CriminalCase{},
+		&ActivityLogModel.ActivityLog{},
 
 	)
 
