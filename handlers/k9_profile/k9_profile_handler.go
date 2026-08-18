@@ -3,23 +3,24 @@ package k9_profile
 import (
 	"net/http"
 	// "fmt"
-	"gorm.io/gorm" 
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
-)
 
-import (
 	utils "k9-system/utils"
-	"github.com/google/uuid"
-)
 
-import (
+	"github.com/google/uuid"
+
 	dto "k9-system/dto/k9_profile"
+
 	response "k9-system/response"
+
 	k9ProfileService "k9-system/services/k9_profile"
+
 	activityLogService "k9-system/services/activity_log"
-	activityLogDTO "k9-system/dto/activity_log"
+
 	"k9-system/constants"
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateK9Profile(c *gin.Context) {
@@ -40,7 +41,7 @@ func CreateK9Profile(c *gin.Context) {
 		req,
 	)
 
-	LogCreate(c, constants.ActionCreate ,&record.ID, err, nil)
+	LogCreate(c, constants.ActionCreate, &record.ID, err, nil)
 
 	if err != nil {
 
@@ -52,8 +53,7 @@ func CreateK9Profile(c *gin.Context) {
 		return
 	}
 
-	response.Created(c,record,)
-
+	response.Created(c, record)
 
 }
 
@@ -79,7 +79,7 @@ func UpdateK9Profile(c *gin.Context) {
 		req,
 	)
 
-	LogCreate(c, constants.ActionUpdate ,&record.ID, err, changes)
+	LogCreate(c, constants.ActionUpdate, &record.ID, err, changes)
 
 	if err != nil {
 
@@ -104,18 +104,17 @@ func GetK9Profiles(c *gin.Context) {
 
 	status := c.Query("status")
 
-	microchip := c.Query("microchip")	
+	microchip := c.Query("microchip")
 
 	pagination := utils.GetPagination(c)
 
-	
 	k9Profiles, pagination, err := k9ProfileService.GetK9Profiles(
 		search,
 		status,
 		microchip,
 		pagination,
 	)
-	LogCreate(c, constants.ActionViewList ,nil, err, nil)
+	LogCreate(c, constants.ActionViewList, nil, err, nil)
 
 	if err != nil {
 		response.Error(
@@ -136,16 +135,15 @@ func GetK9ProfileByID(c *gin.Context) {
 
 	id := c.Param("id")
 
-	
-	k9Profile, err :=  k9ProfileService.GetK9ProfileByID(
+	k9Profile, err := k9ProfileService.GetK9ProfileByID(
 		id,
 	)
 
-	LogCreate(c, constants.ActionView ,&k9Profile.ID, err, nil)
+	LogCreate(c, constants.ActionView, &k9Profile.ID, err, nil)
 
 	if err != nil {
 
-		if err == gorm.ErrRecordNotFound {		
+		if err == gorm.ErrRecordNotFound {
 			response.Error(
 				c,
 				http.StatusNotFound,
@@ -160,7 +158,7 @@ func GetK9ProfileByID(c *gin.Context) {
 		}
 		return
 	}
-	response.Success(c,k9Profile,)
+	response.Success(c, k9Profile)
 }
 
 func LogCreate(

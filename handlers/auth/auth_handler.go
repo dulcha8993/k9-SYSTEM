@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"errors"
 	"k9-system/config"
+	"k9-system/constants"
+
 	// "k9-system/models"
 	"net/http"
 	"os"
@@ -9,29 +12,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-)
 
-import (
 	userModel "k9-system/models/user"
+
 	response "k9-system/response"
+	activityLogService "k9-system/services/activity_log"
 )
 
 type LoginRequest struct {
-	Email string `json:"email" binding:"required,email"`
+	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
 type JWTClaims struct {
-	UserID string `json:"user_id"`
-	RoleID string `json:"role_id"`
-	Email string `json:"email"`
+	UserID   string `json:"user_id"`
+	RoleID   string `json:"role_id"`
+	Email    string `json:"email"`
 	FullName string `json:"user_full_name"`
 
 	jwt.RegisteredClaims
 }
 
-func Login(c *gin.Context) { // c *gin.Context contain request, response, headers, body, params
+func Login(c *gin.Context) {
 
 	var req LoginRequest
 
@@ -46,14 +50,23 @@ func Login(c *gin.Context) { // c *gin.Context contain request, response, header
 		return
 	}
 
-	var user userModel.User // create empty user object
+	var user userModel.User
 
-	// SELECT * FROM users WHERE email = 'admin@k9.com' LIMIT 1;
-	config.DB.
+	result := config.DB.
 		Where("email = ?", req.Email).
 		First(&user)
 
-	if user.ID.String() == "" {
+	// User does not exist
+	if result.Error != nil {
+
+		err := errors.New("invalid credentials")
+
+		LogAuthActivity(
+			c,
+			constants.ActionLogin,
+			nil,
+			err,
+		)
 
 		response.Error(
 			c,
@@ -65,33 +78,41 @@ func Login(c *gin.Context) { // c *gin.Context contain request, response, header
 	}
 
 	// Compare password
-	err := bcrypt.CompareHashAndPassword(
+	if err := bcrypt.CompareHashAndPassword(
 		[]byte(user.PasswordHash),
 		[]byte(req.Password),
-	)
+	); err != nil {
 
-	if err != nil {
+		LogAuthActivity(
+			c,
+			constants.ActionLogin,
+			&user.ID,
+			err,
+		)
 
 		response.Error(
 			c,
 			http.StatusUnauthorized,
 			"Invalid credentials",
 		)
+
 		return
 	}
 
 	// Create JWT claims
 	claims := JWTClaims{
-		UserID: user.ID.String(),
-		RoleID: user.RoleID.String(),
-		Email: user.Email,
+		UserID:   user.ID.String(),
+		RoleID:   user.RoleID.String(),
+		Email:    user.Email,
 		FullName: user.FullName,
 
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(
 				time.Now().Add(24 * time.Hour),
 			),
-			IssuedAt: jwt.NewNumericDate(time.Now()),
+			IssuedAt: jwt.NewNumericDate(
+				time.Now(),
+			),
 		},
 	}
 
@@ -103,15 +124,25 @@ func Login(c *gin.Context) { // c *gin.Context contain request, response, header
 
 	secret := os.Getenv("JWT_SECRET")
 
-	tokenString, err := token.SignedString([]byte(secret))
+	tokenString, err := token.SignedString(
+		[]byte(secret),
+	)
 
 	if err != nil {
+
+		LogAuthActivity(
+			c,
+			constants.ActionLogin,
+			&user.ID,
+			err,
+		)
 
 		response.Error(
 			c,
 			http.StatusInternalServerError,
 			"Failed to generate token",
 		)
+
 		return
 	}
 
@@ -120,10 +151,79 @@ func Login(c *gin.Context) { // c *gin.Context contain request, response, header
 
 	user.LastLoginAt = &now
 
-	config.DB.Save(&user) // save updated user
+	if err := config.DB.Save(&user).Error; err != nil {
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"token": tokenString,
-	})
+		LogAuthActivity(
+			c,
+			constants.ActionLogin,
+			&user.ID,
+			err,
+		)
+
+		response.Error(
+			c,
+			http.StatusInternalServerError,
+			"Failed to update last login",
+		)
+
+		return
+	}
+
+	// Successful login
+	LogAuthActivity(
+		c,
+		constants.ActionLogin,
+		&user.ID,
+		nil,
+	)
+
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"success": true,
+			"token":   tokenString,
+		},
+	)
+}
+
+func LogAuthActivity(
+	c *gin.Context,
+	action string,
+	recordID *uuid.UUID,
+	err error,
+) {
+	var userID uuid.UUID
+
+	// During login there may not be a user_id in context yet.
+	if value, exists := c.Get("user_id"); exists {
+		if id, ok := value.(uuid.UUID); ok {
+			userID = id
+		}
+	}
+
+	description := action + " AUTH"
+
+	if recordID != nil {
+		description += ": " + recordID.String()
+	}
+
+	if err != nil {
+		activityLogService.LogFailure(
+			userID,
+			"AUTH",
+			action,
+			description,
+			err,
+		)
+		return
+	}
+
+	activityLogService.LogSuccess(
+		*recordID,
+		"AUTH",
+		action,
+		recordID,
+		description,
+		nil,
+	)
 }

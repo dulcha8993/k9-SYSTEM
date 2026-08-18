@@ -1,26 +1,28 @@
 package services
 
 import (
-	"fmt"
-	"gorm.io/gorm" 
 	"errors"
+	"fmt"
+
+	"gorm.io/gorm"
 
 	// "github.com/gin-gonic/gin"
 
 	dto "k9-system/dto/k9_profile"
-)
 
-import (
 	config "k9-system/config"
+
 	k9Model "k9-system/models/k9_profile"
+
 	utils "k9-system/utils"
-	activityLogDTO "k9-system/dto/activity_log"
+
 	"k9-system/constants"
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateK9Profile(
 	req dto.CreateK9ProfileRequest,
-	) (*k9Model.K9Profile, error) {
+) (*k9Model.K9Profile, error) {
 
 	// Start transaction
 	tx := config.DB.Begin()
@@ -86,7 +88,6 @@ func CreateK9Profile(
 		)
 	}
 
-
 	k9Profile := k9Model.K9Profile{
 
 		K9Code: k9Code,
@@ -123,7 +124,6 @@ func CreateK9Profile(
 	return &k9Profile, nil
 
 }
-
 
 func UpdateK9Profile(
 	id string,
@@ -235,7 +235,7 @@ func GetK9Profiles(
 	status string,
 	microchip string,
 	pagination utils.Pagination,
-	) ([]k9Model.K9Profile, utils.Pagination, error) {
+) ([]k9Model.K9Profile, utils.Pagination, error) {
 
 	var k9Profiles []k9Model.K9Profile
 
@@ -288,7 +288,7 @@ func GetK9ProfileByID(
 	var k9Profile k9Model.K9Profile
 
 	if err := config.DB.First(&k9Profile, "id = ?", id).Error; err != nil {
-		return nil, err	
+		return nil, err
 	}
 
 	return &k9Profile, nil

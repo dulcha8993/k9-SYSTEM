@@ -2,23 +2,23 @@ package user
 
 import (
 	"net/http"
-	"fmt"
 
 	"github.com/gin-gonic/gin" // HTTP web framework for Go (Golang)
-)
 
-import (
 	utils "k9-system/utils"
-	"github.com/google/uuid"
-)
 
-import (
+	"github.com/google/uuid"
+
 	dto "k9-system/dto/user"
+
 	response "k9-system/response"
+
 	userService "k9-system/services/user"
+
 	activityLogService "k9-system/services/activity_log"
-	activityLogDTO "k9-system/dto/activity_log"
+
 	"k9-system/constants"
+	activityLogDTO "k9-system/dto/activity_log"
 )
 
 func CreateUser(c *gin.Context) {
@@ -95,7 +95,7 @@ func UpdateUser(c *gin.Context) {
 		req,
 	)
 
-	LogCreate(c, constants.ActionUpdate ,&user.ID, err, changes)
+	LogCreate(c, constants.ActionUpdate, &user.ID, err, changes)
 
 	if err != nil {
 
@@ -128,7 +128,7 @@ func GetUsers(c *gin.Context) {
 		pagination,
 	)
 
-		LogCreate(c, constants.ActionViewList ,nil, err, nil)
+	LogCreate(c, constants.ActionViewList, nil, err, nil)
 
 	if err != nil {
 
@@ -148,7 +148,6 @@ func GetUsers(c *gin.Context) {
 	)
 }
 
-
 func GetUserByID(c *gin.Context) {
 
 	id := c.Param("id")
@@ -157,7 +156,7 @@ func GetUserByID(c *gin.Context) {
 		id,
 	)
 
-	LogCreate(c, constants.ActionView ,&userResponse.ID, err, nil)
+	LogCreate(c, constants.ActionView, &userResponse.ID, err, nil)
 
 	if err != nil {
 
